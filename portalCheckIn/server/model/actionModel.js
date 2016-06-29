@@ -4,8 +4,7 @@
 var mongoose = require('mongoose');
 
 actionSchema = mongoose.Schema({
-    actionType: String,
-    //whether we need id?
+    types: [],
     user: {
         studentId:Number,
         name:String

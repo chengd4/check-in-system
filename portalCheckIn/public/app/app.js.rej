@@ -1,0 +1,10 @@
+diff a/portalCheckIn/public/app/app.js b/portalCheckIn/public/app/app.js	(rejected hunks)
+@@ -45,7 +45,7 @@
+              controller: 'adminController'
+         })
+         .state('adminLogin', {
+-            url: '/adminlogin',
++            url: '/login',
+             templateUrl: 'views/admin.html',
+             controller : 'loginController'
+         })
