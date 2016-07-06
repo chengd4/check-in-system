@@ -8,68 +8,72 @@ var Schedule = require('../model/scheduleModel');
 
 var bufferTime = 6 * 60 * 1000; //6 minutes in milliseconds
 
-var match_schedule = function (shift, newAction,res,result) {
+var match_schedule = function (shift, newAction, res, user) {
 
     if (shift.end.getTime() - newAction.createdAt.getTime() <= bufferTime) {
 
         // STOP CHECKIN
-        res.status(201);
-        res.json({
-            status: 201,
-            err: "You shift is about to end"
-        })
+        // You shift is about to end
+        res.status(202).json({
+            status:202,
+            message: "Your shift is about to end."
+        });
+
     }
     else if(shift.start.getTime()-newAction.createdAt.getTime() > bufferTime){
+        //You shift is not started yet
+        res.status(202).json({
+            status:202,
+            message: "You shift is not start yet."
 
-        res.status(201);
-        res.json({
-            status: 201,
-            err: "You shift is not started yet"
-        })
+        });
+
     }
     else if (Math.abs(newAction.createdAt.getTime() - shift.start.getTime()) <= bufferTime) {
+        //successfully checkin
 
+        newAction.extras.scheduleId = shift._id;
         newAction.save();
-        res.status(200);
-        res.json({
-            status: 200,
-            message: "Successfully Checked In",
-            token: result.name
-
-        })
+        res.status(200).json({
+            status:200,
+            message: "successfully check in",
+            token: user.name
+        });
     }
     else {
 
         newAction.type.push('late');
+        newAction.extras.scheduleId = shift._id;
         newAction.save();
-        res.status(200);
-        res.json({
-            status: 200,
-            message: "Successfully Checked In Late",
-            token: result.name
-        })
+        //successfully checked in
+        res.status(200).json({
+            status:200,
+            message: "successfully checkin late",
+            token: user.name
+        });
+
     }
 };
-var allow_checkin = function (actions, newAction, shift,res,result) {
+var allow_checkin = function (actions, newAction, shift,res,user) {
     if (actions == null) {
-        match_schedule(shift, newAction,res,result);
+        match_schedule(shift, newAction, res, user);
     }
     else if (actions.type.indexOf('checkin') == -1) {
-        match_schedule(shift, newAction,res,result);
+        match_schedule(shift, newAction, res, user);
     }
     else {
-        res.status(201);
-        res.json({
-            status: 201,
-            err: "User is Checked In"
+        //User is checked in, don't allow check in again
+        res.status(202).json({
+            status:202,
+            message: "User is already checked in"
         });
+
     }
 };
-var find_shift = function(shift,res,result){
+var find_shift = function(actions, newAction, shift, res, user){
 
     if (shift.start.getTime() - bufferTime <= newAction.createdAt.getTime() && newAction.createdAt.getTime() <= shift.end.getTime() + bufferTime) {
-
-        allow_checkin(actions, newAction, shift,res,result);
+        allow_checkin(actions, newAction, shift, res, user);
         return true;
     }
     return false;
@@ -77,21 +81,22 @@ var find_shift = function(shift,res,result){
 
 router.post('/checkin', function (req, res) {
 
-    User.findOne({studentId: req.body.studentId}, function (err, result) {
+    User.findOne({studentId: req.body.studentId}, function (err, user) {
         //if user id does not exist, send an alert.
 
-        if (result == null) {
-            console.log('user does not exist with student id', req.body.studentId);
-            res.status(404).json({status:404});
+        if (user == null) {
+
+            res.status(202).json({status:202, message:"user does not exist with student id "+req.body.studentId});
         }
         else {
             var newAction = new Action();
             newAction.type.push('checkin');
-            newAction.user = {_id: result._id, name: result.name};
+            newAction.user = {_id: user._id, name: user.name};
+            newAction.extras = {};
             //newAction.createdAt = nowDate;
             var today = moment().startOf('day');
             var tomorrow = moment(today).add(1, 'days');
-            Action.findOne({'user._id': result._id}, {}, {sort: {'createdAt': -1}}, function (err, actions) {
+            Action.findOne({'user._id': user._id}, {}, {sort: {'createdAt': -1}}, function (err, actions) {
                 Schedule.find(
                     {
                         'user._id': newAction.user._id,
@@ -100,20 +105,20 @@ router.post('/checkin', function (req, res) {
                     {},
                     {sort: {'start': -1}},
                     function (err, shifts) {
+
                     if (shifts.length === 0){
 
-                        res.status(201);
-                        res.json({
-                            status: 201,
-                            err: "No shift today"
+                        res.status(202).json({
+                            status: 202,
+                            message: "No shift today"
                         });
                     }
                     else if (shifts.length === 1) {
-                        allow_checkin(actions, newAction, shifts[0],res,result);
+                        allow_checkin(actions, newAction, shifts[0],res,user);
                     }
                     else if (shifts.length > 1) {
                         for (var i = 0; i < shifts.length; i++) {
-                            if(find_shift(shifts[i],res,result)){
+                            if(find_shift(actions, newAction, shifts[i], res, user)){
                                 break;
                             }
                         }

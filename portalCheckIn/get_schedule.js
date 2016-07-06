@@ -2,6 +2,7 @@
  * Created by xinshen on 6/29/16.
  */
 var User = require('./server/model/usersModel');
+var Schedule = require('./server/model/scheduleModel');
 // Google Calendar API setup
 
 var fs = require('fs');
@@ -17,7 +18,7 @@ var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH ||
 
 var TOKEN_PATH = TOKEN_DIR + 'calendar-nodejs-quickstart.json';
 
-var calendar_id = '1t8dl0sqarrudmiqutl36er5bo@group.calendar.google.com';
+var calendar_id = 'uci.edu_gk1s7c19lkft8oujtei68pre68@group.calendar.google.com';
 
 var make_schedule = function (event) {
     User.findOne({name: event.summary, studentId: event.description}, function (err, result) {
@@ -44,7 +45,7 @@ var make_schedule = function (event) {
 var CronJob = require('cron').CronJob;
 
 var job = new CronJob({
-    cronTime: '00 08 14 * * 1-5',
+    cronTime: '00 23 13 * * 1-5',
     onTick: function () {
         // Load client secrets from a local file.
         fs.readFile('client_secret.json', function processClientSecrets(err, content) {
@@ -169,7 +170,6 @@ function listEvents(auth) {
 
 
             for (var i = 0; i < events.length; i++) {
-                console.log(events[i]);
                 make_schedule(events[i]);
             }
 
