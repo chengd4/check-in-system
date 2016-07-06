@@ -9,7 +9,7 @@ var users         = require('./server/route/usersRoute');
 var admins        = require('./server/route/admin_routes');
 var mongoose      = require('mongoose');
 var get_schedule = require('./get_schedule');
-
+var hourlyCron = require('./hourlyCron');
 
 //connect to mongo
 
