@@ -4,14 +4,23 @@ var cron = require('cron');
 var cronJob = cron.CronJob;
 
 var lateJob = new cronJob({
-  cronTime: '0 45,46 * * * 1-5',
+  cronTime: '0 5,55 * * * 1-5',
   onTick: function(){
-    console.log("WOO");
+    //DO SOMETHING
+  },
+  start: false,
+  timeStart: 'America/Los_Angeles'
+});
+
+var absentJob = new cronJob({
+  cronTime: '0 25,35 * * * 1-5',
+  onTick: function(){
+    //DO SOMETHING
   },
   start: false,
   timeStart: 'America/Los_Angeles'
 });
 
 
-
-lateJob.start();
+//absentJob.start();
+//lateJob.start();
