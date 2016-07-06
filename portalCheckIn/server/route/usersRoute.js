@@ -1,28 +1,92 @@
 var express = require('express'),
     router = express.Router(),
     mongoose = require('mongoose'),
-    users = require('../model/usersModel'),
-    User = mongoose.model('user', users),
+    User = require('../model/usersModel'),
     moment = require('moment');
-
 var Action = require('../model/actionModel');
 var Schedule = require('../model/scheduleModel');
 
+var bufferTime = 6 * 60 * 1000; //6 minutes in milliseconds
 
-//In milliseconds so 6 * 60 * 1000 = 360000 milliseconds would be 6 minute
-var BUFFERTIME = 6 * 60 * 1000;
+var match_schedule = function (shift, newAction,res,result) {
 
-// This function is very messy. Rewrite the logic
+    if (shift.end.getTime() - newAction.createdAt.getTime() <= bufferTime) {
+
+        // STOP CHECKIN
+        res.status(201);
+        res.json({
+            status: 201,
+            err: "You shift is about to end"
+        })
+    }
+    else if(shift.start.getTime()-newAction.createdAt.getTime() > bufferTime){
+
+        res.status(201);
+        res.json({
+            status: 201,
+            err: "You shift is not started yet"
+        })
+    }
+    else if (Math.abs(newAction.createdAt.getTime() - shift.start.getTime()) <= bufferTime) {
+
+        newAction.save();
+        res.status(200);
+        res.json({
+            status: 200,
+            message: "Successfully Checked In",
+            token: result.name
+
+        })
+    }
+    else {
+
+        newAction.type.push('late');
+        newAction.save();
+        res.status(200);
+        res.json({
+            status: 200,
+            message: "Successfully Checked In Late",
+            token: result.name
+        })
+    }
+};
+var allow_checkin = function (actions, newAction, shift,res,result) {
+    if (actions == null) {
+        match_schedule(shift, newAction,res,result);
+    }
+    else if (actions.type.indexOf('checkin') == -1) {
+        match_schedule(shift, newAction,res,result);
+    }
+    else {
+        res.status(201);
+        res.json({
+            status: 201,
+            err: "User is Checked In"
+        });
+    }
+};
+var find_shift = function(shift,res,result){
+
+    if (shift.start.getTime() - bufferTime <= newAction.createdAt.getTime() && newAction.createdAt.getTime() <= shift.end.getTime() + bufferTime) {
+
+        allow_checkin(actions, newAction, shift,res,result);
+        return true;
+    }
+    return false;
+};
+
 router.post('/checkin', function (req, res) {
+
     User.findOne({studentId: req.body.studentId}, function (err, result) {
         //if user id does not exist, send an alert.
+
         if (result == null) {
             console.log('user does not exist with student id', req.body.studentId);
             res.status(404).json({status:404});
         }
         else {
             var newAction = new Action();
-            newAction.type = ['checkin'];
+            newAction.type.push('checkin');
             newAction.user = {_id: result._id, name: result.name};
             //newAction.createdAt = nowDate;
             var today = moment().startOf('day');
@@ -38,18 +102,29 @@ router.post('/checkin', function (req, res) {
                     function (err, shifts) {
 
                     if (shifts.length === 0){
+
                         res.status(201);
                         res.json({
                             status: 201,
-                            err : "User is Checked In"
+                            err: "No shift today"
                         });
                     }
-                })
+                    else if (shifts.length === 1) {
+                        allow_checkin(actions, newAction, shifts[0],res,result);
+                    }
+                    else if (shifts.length > 1) {
+                        for (var i = 0; i < shifts.length; i++) {
+                            if(find_shift(shifts[i],res,result)){
+                                break;
+                            }
+                        }
+                    }
+
+                });
             });
         }
     });
 });
-
 
 function makeCheckout(schedule, nowDate, user, res){
   //Make the checkout time based on the scheduled checkout time
