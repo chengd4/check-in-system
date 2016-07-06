@@ -44,7 +44,7 @@ var make_schedule = function (event) {
 var CronJob = require('cron').CronJob;
 
 var job = new CronJob({
-    cronTime: '00 45 12 * * 1-5',
+    cronTime: '00 08 14 * * 1-5',
     onTick: function () {
         // Load client secrets from a local file.
         fs.readFile('client_secret.json', function processClientSecrets(err, content) {

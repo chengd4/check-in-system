@@ -14,35 +14,30 @@ var BUFFERTIME = 6 * 60 * 1000;
 
 // This function is very messy. Rewrite the logic
 router.post('/checkin', function (req, res) {
-    var nowDate = new Date(); //Convert the moment to a date object
-
-    User.findOne(req.body, function (err, result) {
+    User.findOne({studentId: req.body.studentId}, function (err, result) {
         //if user id does not exist, send an alert.
         if (result == null) {
-            res.status(202);
-            res.json({
-                status: 202
-            });
+            console.log('user does not exist with student id', req.body.studentId);
+            res.status(404).json({status:404});
         }
         else {
             var newAction = new Action();
             newAction.type = ['checkin'];
             newAction.user = {_id: result._id, name: result.name};
-            newAction.createdAt = nowDate;
-            var userid = result.studentId;
-            Action.count({type: {$in: ["checkout"]}, "user.name": result.name}, function(err, checkoutcount){
-                Action.count({type: {$in: ["checkin"]}, "user.name": result.name}, function(err, checkincount){
-                    if (checkincount == checkoutcount) {
-                        //if the user is not checked in, check the user in
-                        newAction.save();
-                        res.status(200);
-                        res.json({
-                            status: 200,
-                            token: result.name
-                        });
-                    }
-                    else {
-                        // if user is already checked in, alert the user and not check in again
+            //newAction.createdAt = nowDate;
+            var today = moment().startOf('day');
+            var tomorrow = moment(today).add(1, 'days');
+            Action.findOne({'user._id': result._id}, {}, {sort: {'createdAt': -1}}, function (err, actions) {
+                Schedule.find(
+                    {
+                        'user._id': newAction.user._id,
+                        start: {"$gte": today.toDate(), "$lt": tomorrow.toDate()}
+                    },
+                    {},
+                    {sort: {'start': -1}},
+                    function (err, shifts) {
+
+                    if (shifts.length === 0){
                         res.status(201);
                         res.json({
                             status: 201,
