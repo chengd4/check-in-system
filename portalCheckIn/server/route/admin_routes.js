@@ -93,8 +93,12 @@ router.post('/login', function(req,res){
 //allow admins to add user
 router.post('/addUser', function(req, res) {
     /* create new user Schema with the req */
+
     var newUser = new User(req.body);
-    newUser.password = passwordHash.generate(newUser.password);
+    if(newUser.isAdmin){
+
+    newUser.password = passwordHash.generate(newUser.password);}
+
     /* Save data from user input into the database */
     newUser.save(function(err) {
         if (err) {
@@ -198,13 +202,13 @@ router.get('/viewUsers', function(req, res) {
 
 //view actions
 router.get('/viewActions', function(req,res){
-    console.log('in action route');
+
     Action.find({},function(err,results){
         if(err){
             res.send('Unable to view actions. Error: '+err.message);
         } else {
             res.status(200);
-            console.log(results);
+
             res.json(results);
         }
     })
@@ -218,7 +222,7 @@ router.get('/viewCheckIn', function(req,res){
     }
     else{
       res.status(200);
-      console.log(results);
+
       res.json(results);
     }
   });
@@ -231,7 +235,7 @@ router.get('/viewCheckOut', function(req,res){
     }
     else{
       res.status(200);
-      console.log(results);
+
       res.json(results);
     }
   });

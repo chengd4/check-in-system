@@ -11,7 +11,7 @@ var usersSchema = mongoose.Schema({
     isAdmin: Boolean,
     password: String,
     phone: Number,
-    housingArea: String,
+    address: String,
     birthdate: Date,
     graduationDate: Date,
     isIntlStudent: Boolean,
@@ -20,12 +20,10 @@ var usersSchema = mongoose.Schema({
     employmentStart: Date,
     employmentEnd: Date,
     hasParkingPass: Boolean,
-    password: String,
-    hasKeys: Boolean,
-    keyType: String,
+    officeKeys: [String],
     dateActivated:Date,
-    dateDeactivated:Date,
-    flags: Number
+    dateDeactivated:Date
+    //flags: Number
 });
 
 

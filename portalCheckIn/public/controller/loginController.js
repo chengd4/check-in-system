@@ -13,13 +13,14 @@ appLogin.controller("loginController", ['$scope','$http', '$state', 'CheckInServ
                     updateNameService.set(data.token);
                     $state.go('CheckInConfirmation');
                 }else if(data.status == 201){
-                    alert("User is already logged in. Please checkout first");
+                    //alert("User is already logged in. Please checkout first");
+                    alert(data.err);
                     window.location.href='#/home';
                 } else {
                     alert("Student ID does not exist!");
                 }
             });
-        //}
+
     };
 
     $scope.loginAdmin = function(){

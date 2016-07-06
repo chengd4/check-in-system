@@ -1,38 +1,89 @@
 var express = require('express'),
     router = express.Router(),
     mongoose = require('mongoose'),
-    users = require('../model/usersModel'),
-    User = mongoose.model('user', users),
+    User = require('../model/usersModel'),
     moment = require('moment');
+Action = require('../model/actionModel');
+Schedule = require('../model/scheduleModel');
 
-var actions = require('../model/actionModel');
-var Action = mongoose.model('action', actions);
+var bufferTime = 6 * 60 * 1000; //6 minutes in milliseconds
 
-// Google Calendar API setup
+var match_schedule = function (shift, newAction,res,result) {
 
-var fs = require('fs');
-var readline = require('readline');
-var google = require('googleapis');
-var googleAuth = require('google-auth-library');
+    if (shift.end.getTime() - newAction.createdAt.getTime() <= bufferTime) {
 
-// If modifying these scopes, delete your previously saved credentials
-// at ~/.credentials/calendar-nodejs-quickstart.json
-var SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
-var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH ||
-    process.env.USERPROFILE) + '/.credentials/';
-var TOKEN_PATH = TOKEN_DIR + 'calendar-nodejs-quickstart.json';
+        // STOP CHECKIN
+        res.status(201);
+        res.json({
+            status: 201,
+            err: "You shift is about to end"
+        })
+    }
+    else if(shift.start.getTime()-newAction.createdAt.getTime() > bufferTime){
 
+        res.status(201);
+        res.json({
+            status: 201,
+            err: "You shift is not started yet"
+        })
+    }
+    else if (Math.abs(newAction.createdAt.getTime() - shift.start.getTime()) <= bufferTime) {
 
-moment().format();
-// This function is very messy. Rewrite the logic
+        newAction.save();
+        res.status(200);
+        res.json({
+            status: 200,
+            message: "Successfully Checked In",
+            token: result.name
+
+        })
+    }
+    else {
+
+        newAction.type.push('late');
+        newAction.save();
+        res.status(200);
+        res.json({
+            status: 200,
+            message: "Successfully Checked In Late",
+            token: result.name
+        })
+    }
+};
+var allow_checkin = function (actions, newAction, shift,res,result) {
+    if (actions == null) {
+        match_schedule(shift, newAction,res,result);
+    }
+    else if (actions.type.indexOf('checkin') == -1) {
+        match_schedule(shift, newAction,res,result);
+    }
+    else {
+        res.status(201);
+        res.json({
+            status: 201,
+            err: "User is Checked In"
+        });
+    }
+};
+var find_shift = function(shift,res,result){
+
+    if (shift.start.getTime() - bufferTime <= newAction.createdAt.getTime() && newAction.createdAt.getTime() <= shift.end.getTime() + bufferTime) {
+
+        allow_checkin(actions, newAction, shift,res,result);
+        return true;
+    }
+    return false;
+};
+
 router.post('/checkin', function (req, res) {
 
-    var now = moment(); //Capture the current moment
-    var nowDate = now.local().toDate(); //Convert the moment to a date object
-    var date = nowDate.getDate();
+
+
     User.findOne(req.body, function (err, result) {
         //if user id does not exist, send an alert.
+
         if (result == null) {
+            console.log('inside user does not exist');
             res.status(202);
             res.json({
                 status: 202
@@ -40,42 +91,50 @@ router.post('/checkin', function (req, res) {
         }
         else {
             var newAction = new Action();
-            newAction.actionType = 'checkin';
-            newAction.user = {studentId: result.studentId, name: result.name};
-            newAction.createdAt = nowDate;
-            var userid = result.studentId;
-            Action.count({actionType: 'checkin',"user.studentId": userid}, function (err, checkincount) {
-                Action.count({actionType: 'checkout',"user.studentId": userid}, function (err, checkoutcount) {
-                    if (checkincount == checkoutcount) {
-                        //if the user is not checked in, check the user in
-                        newAction.save();
-                        res.status(200);
-                        res.json({
-                            status: 200,
-                            token: result.name
-                        });
-                    }
-                    else {
-                        // if user is already checked in, alert the user and not check in again
+            newAction.type.push('checkin');
+            newAction.user = {_id: result._id, name: result.name};
+            //newAction.createdAt = nowDate;
+            var today = moment().startOf('day');
+            var tomorrow = moment(today).add(1, 'days');
+            Action.findOne({'user._id': result._id}, {}, {sort: {'createdAt': -1}}, function (err, actions) {
+                Schedule.find({
+                    'user._id': newAction.user._id,
+                    start: {"$gte": today.toDate(), "$lt": tomorrow.toDate()}
+                }, {}, {sort: {'start': -1}}, function (err, shifts) {
+
+                    if (shifts.length === 0){
+
                         res.status(201);
                         res.json({
                             status: 201,
-                            err : "User is Checked In"
+                            err: "No shift today"
                         });
                     }
-                })
+                    else if (shifts.length === 1) {
+                        allow_checkin(actions, newAction, shifts[0],res,result);
+                    }
+                    else if (shifts.length > 1) {
+                        for (var i = 0; i < shifts.length; i++) {
+                            if(find_shift(shifts[i],res,result)){
+                                break;
+                            }
+                        }
+                    }
+
+                });
             });
         }
     });
 });
 
-router.post('/checkout' ,function(req,res){
-   var now = moment();
-   var nowDate = now.local().toDate();
+
+router.post('/checkout', function (req, res) {
+    var now = moment();
+    var nowDate = now.local().toDate();
 
     User.findOne(req.body, function (err, result) {
-        console.log(result);
-        if (err){
+
+        if (err) {
             throw err;
         }
         else if (result == null) { //Didnt find a user
@@ -84,44 +143,46 @@ router.post('/checkout' ,function(req,res){
 
             //return to controller
             res.json({
-                status : 202,
-                message : "No user found with that ID"
+                status: 202,
+                message: "No user found with that ID"
             });
         }
-        else if (result){ //found a user
+        else if (result) { //found a user
             //Compare checkin and checkout counts to see whether or not to checkout
             //If the number of checkin is the same than the number of checkout for a user, then the person did not checkin yet.
-            Action.count({actionType: "checkout", "user.name": result.name}, function(err, checkoutcount){
-                Action.count({actionType: "checkin", "user.name": result.name}, function(err, checkincount){
+            Action.count({type: "checkout", "user.name": result.name}, function (err, checkoutcount) {
+                Action.count({type: "checkin", "user.name": result.name}, function (err, checkincount) {
                     console.log(result.name + " Checkout: " + checkoutcount + " Checkin: " + checkincount);
-                    if (err){
+                    if (err) {
                         throw err;
                     }
-                    else if (checkincount > checkoutcount){
+                    else if (checkincount > checkoutcount) {
                         //do checkout and compare calendar here
                         //make the checkout object
                         var newAction = new Action({
-                            actionType: "checkout",
+                            type: "checkout",
                             createdAt: nowDate,
                             user: {studentId: result.studentId, name: result.name}
                         });
 
-                        newAction.save(function(err, doc){
-                            if (err){
+                        newAction.save(function (err, doc) {
+                            if (err) {
                                 throw err;
                             }
                             console.log(nowDate);
                             res.status(200);
-                            res.json({status:200,
+                            res.json({
+                                status: 200,
                                 message: "Successfully Checked Out",
-                                token: result.name});
+                                token: result.name
+                            });
                         });
                     }
-                    else{
+                    else {
                         //can't do checkout since no checkin action available
                         console.log("User has not checked in");
                         res.status(201);
-                        res.json({status:201, message : "User Has Not Checked In"});
+                        res.json({status: 201, message: "User Has Not Checked In"});
                     }
                 });
             });
