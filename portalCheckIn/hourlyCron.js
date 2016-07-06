@@ -4,7 +4,7 @@ var cron = require('cron');
 var cronJob = cron.CronJob;
 
 var lateJob = new cronJob({
-  cronTime: '0 14,16 * * * 1-5',
+  cronTime: '0 45,46 * * * 1-5',
   onTick: function(){
     console.log("WOO");
   },

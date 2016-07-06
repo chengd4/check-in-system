@@ -100,7 +100,6 @@ router.post('/checkin', function (req, res) {
                     {},
                     {sort: {'start': -1}},
                     function (err, shifts) {
-
                     if (shifts.length === 0){
 
                         res.status(201);
@@ -129,10 +128,10 @@ router.post('/checkin', function (req, res) {
 function makeCheckout(schedule, nowDate, user, res){
   //Make the checkout time based on the scheduled checkout time
   var status = ["checkout"];
-  if (schedule.end.getTime() - BUFFERTIME > nowDate.getTime()){
+  if (schedule.end.getTime() - bufferTime > nowDate.getTime()){
     status.push( "early");
   }
-  else if (schedule.end.getTime() + BUFFERTIME < nowDate.getTime()){
+  else if (schedule.end.getTime() + bufferTime < nowDate.getTime()){
     status.push( "late");
   }
 
@@ -190,7 +189,6 @@ router.post('/checkout' ,function(req,res){
               else if (listSchedules.length > 1){
                 var bestPos = 0;
                 var time = nowDate.getTime();
-                var bufferTime = 6 * 60 * 1000;
 
                 for (var i = 1; i < listSchedules.length; i++){
                   if (Math.abs(time - listSchedules[i].end.getTime()) > Math.abs(time - listSchedules[bestPos].end.getTime())){
