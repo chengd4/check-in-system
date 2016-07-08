@@ -18,7 +18,7 @@ var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH ||
 
 var TOKEN_PATH = TOKEN_DIR + 'calendar-nodejs-quickstart.json';
 
-var calendar_id = 'uci.edu_gk1s7c19lkft8oujtei68pre68@group.calendar.google.com';
+var calendar_id = '1t8dl0sqarrudmiqutl36er5bo@group.calendar.google.com';
 
 var make_schedule = function (event) {
     User.findOne({name: event.summary, studentId: event.description}, function (err, result) {
@@ -45,7 +45,7 @@ var make_schedule = function (event) {
 var CronJob = require('cron').CronJob;
 
 var job = new CronJob({
-    cronTime: '00 23 13 * * 1-5',
+    cronTime: '00 00 7 * * 1-5',
     onTick: function () {
         // Load client secrets from a local file.
         fs.readFile('client_secret.json', function processClientSecrets(err, content) {
@@ -146,13 +146,15 @@ function storeToken(token) {
 function listEvents(auth) {
     console.log('list events');
     var calendar = google.calendar('v3');
-    var next_day = new Date();
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var next_day = new Date(today);
     next_day.setDate(next_day.getDate() + 1);
 
     calendar.events.list({
         auth: auth,
         calendarId: calendar_id,
-        timeMin: (new Date()).toISOString(),
+        timeMin: today.toISOString(),
         timeMax: next_day.toISOString(),
         maxResults: 50,
         singleEvents: true,
