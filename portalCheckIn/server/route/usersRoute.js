@@ -172,8 +172,8 @@ router.post('/checkout' ,function(req,res){
         Action.findOne({"user._id": user._id,}, null, {sort: {'createdAt': -1}}, function(err, latestAction){
           if (latestAction == null){
             console.log("User has not checked in");
-            res.status(201);
-            res.json({status:201, message : "User Has Not Checked In"});
+            res.status(202);
+            res.json({status:202, message : "User Has Not Checked In"});
           }
           else if (latestAction.type.indexOf("checkin") != -1){ //If you can find checkin, then continue
             var today = new Date();
@@ -215,8 +215,8 @@ router.post('/checkout' ,function(req,res){
           }
           else{
             console.log("User has not checked in");
-            res.status(201);
-            res.json({status:201, message : "User Has Not Checked In"});
+            res.status(202);
+            res.json({status:202, message : "User Has Not Checked In"});
           }
         });
       }
