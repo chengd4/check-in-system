@@ -12,8 +12,8 @@ appLogin.controller("loginController", ['$scope','$http', '$state', 'CheckInServ
                     //Set name to reflect on confirmation page and go there
                     updateNameService.set(data.token);
                     $state.go('CheckInConfirmation');
-                }else if(data.status == 201){
-                    alert(data.err);
+                }else if(data.status == 202){
+                    alert(data.message);
                     window.location.href='#/home';
                 } else {
                     alert("Student ID does not exist!");
